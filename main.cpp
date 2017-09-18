@@ -40,7 +40,7 @@ void progress_bar(const std::size_t, const std::size_t);
 std::size_t file_number_digits(const std::size_t);
 
 bool user_wants_images(void);
-void create_images_from_files(const std::size_t);
+void create_images_from_files(const std::size_t, const std::size_t);
 
 int main(const int argc, const char ** argv)
 {
@@ -76,7 +76,7 @@ int main(const int argc, const char ** argv)
     }
 
     if (user_wants_images())
-        create_images_from_files(iterations);
+        create_images_from_files(iterations, digits);
 }
 
 //  Implementations
@@ -222,7 +222,7 @@ std::string file_name(const std::size_t generation, const std::size_t digits)
     return std::string{ FILES_FOLDER_NAME }.append(
                 std::string(digits - std::to_string(generation).size(), '0').append(
                     std::to_string(generation).append(
-                        FILES_NAME;
+                        FILES_NAME
     )));
 }
 
