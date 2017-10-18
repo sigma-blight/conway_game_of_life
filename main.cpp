@@ -1,97 +1,21 @@
-#include <cstdlib>
 #include <vector>
-#include <cstring>
-#include <cstdio>
-#include <cstdint>
 #include <string>
 #include <fstream>
-#include <iostream>
-#include <iomanip>
 #include <sstream>
+#include <random>
 
-class CMDData
-{
-    static void exit_invalid_arg(const char * arg, const char * msg)
-    {
-        fprintf(stderr, "Invalid CMD Arg %s - %s\n", arg, msg);
-        exit(-1);
-    }
-
-    static std::size_t get_size_t(const char * arg, const char * error_msg)
-    {
-        std::size_t res;
-        if(sscanf(arg, "%zd", &res) != 1)
-            exit_invalid_arg(arg, error_msg);
-        return res;
-    }
-
-    static std::size_t get_grid_size(const char ** argv)
-    {
-        const std::size_t res = 
-            get_size_t(argv[1], "Grid Size requires unsigned integer");
-
-        if (res < 3)
-            exit_invalid_arg(argv[1], "Grid size has to be larger than 3");
-
-        return res;
-    }
-
-    static std::size_t get_overpopulation(const char ** argv)
-    {
-        return get_size_t(argv[2], "Overpopulation requires unsigned integer");
-    }
-
-    static std::size_t get_birth(const char ** argv)
-    {
-        return get_size_t(argv[3], "Birth requires unsigned integer");
-    }
-
-    static std::size_t get_loneliness(const char ** argv)
-    {
-        return get_size_t(argv[4], "Loneliness requires unsigned integer");
-    }
-
-    static std::size_t get_iterations(const char ** argv)
-    {
-        return get_size_t(argv[5], "Iterations requires unsigned integer");
-    }
-
-public:
-
-    const std::size_t grid_size;
-    const std::size_t overpopulation;
-    const std::size_t birth;
-    const std::size_t loneliness;
-    const std::size_t iterations;
-
-    CMDData(const int argc, const char ** argv) :
-        grid_size{ get_grid_size(argv) },
-        overpopulation{ get_overpopulation(argv) },
-        birth{ get_birth(argv) },
-        loneliness{ get_loneliness(argv) },
-        iterations{ get_iterations(argv) }
-    {
-        std::cout
-            << "Conways Game of Life Environment: \n"
-            << "\tGrid Size: " << grid_size << "\n"
-            << "\tOverpopulation: " << overpopulation << "\n"
-            << "\tLoneliness: " << loneliness << "\n"
-            << "\tBirth: " << birth << "\n"
-            << "\tIterations: " << iterations << "\n\n";
-    }
-};
+#include <mpi.h>
+#include <omp.h>
 
 struct Grid
 {
     using type_t = std::uint8_t;
     using grid_t = std::vector<type_t>;
-    grid_t data;
-    const std::size_t size;
 
-    Grid(const std::size_t & size) :
-        data(size * size),
-        size{ size }
-    {}
+    static constexpr std::size_t size = 30;
+    grid_t data;
+
+    Grid(void) : data(size * size) {}
 
     type_t & at(const std::size_t & row, const std::size_t & col)
     {
@@ -104,55 +28,57 @@ struct Grid
     }
 };
 
-void validate_argc(const int, const char **);
+struct Ruleset
+{
+    static constexpr std::size_t overpopulation = 3;
+    static constexpr std::size_t loneliness = 2;
+    static constexpr std::size_t birth = 3;
+};
+
 std::size_t get_population(const Grid &, const std::size_t &, const std::size_t &);
-void generate(Grid &, const Grid &, const CMDData &);
+void init_grid(Grid &);
+void generate(Grid &, const Grid &);
 void save_grid(const Grid &, const std::size_t &);
 
-/*
- * ./game <grid_size> <neighbourhood_type> <overpopulation> <birth> <loneliness> <iterations>
- *
-*/
-int main(const int argc, const char ** argv)
+int main(int argc, char ** argv)
 {
-    validate_argc(argc, argv);
-    CMDData cmd_data{ argc, argv };
-    Grid current{ cmd_data.grid_size };
-    Grid next{ cmd_data.grid_size };
+    MPI::Init(argc, argv);
 
-    std::fill(current.data.begin(), current.data.end(), 0);
-    current.at(1, 3) = current.at(2, 1) = current.at(2, 3) = current.at(3, 2) = current.at(3, 3) = 1;
+    static constexpr std::size_t iterations = 100;
+    Grid current;
+    Grid next;
+    init_grid(current);
 
-    for (std::size_t i = 0; i != cmd_data.iterations; ++i)
+    for (std::size_t i = 0; i != iterations; ++i)
     {
-        generate(next, current, cmd_data);
         save_grid(current, i);
+        generate(next, current);
         current.data = next.data;
     }
+
+    MPI::Finalize();
 
     return 0;
 }
 
 
-void generate(Grid & next, const Grid & current, const CMDData & cmd_data)
+void generate(Grid & next, const Grid & current)
 { 
     for (std::size_t r = 1; r != current.size - 1; ++r)
-    {
         for (std::size_t c = 1; c != current.size - 1; ++c)
         {
             const std::size_t population = get_population(current, r, c);
 
             if (current.at(r, c) != 0 &&
-                (population > cmd_data.overpopulation ||
-                 population < cmd_data.loneliness))
+                (population > Ruleset::overpopulation ||
+                 population < Ruleset::loneliness))
                 next.at(r, c) = 0;
             else if (current.at(r, c) == 0 &&
-                     population == cmd_data.birth)
+                     population == Ruleset::birth)
                 next.at(r, c) = 1;
             else
                 next.at(r, c) = current.at(r, c);
         }
-    }
 }
 
 std::size_t get_population(const Grid & grid, 
@@ -167,6 +93,17 @@ std::size_t get_population(const Grid & grid,
             grid.at(r + 1, c - 1) +
             grid.at(r + 1, c) +
             grid.at(r + 1, c + 1);
+}
+
+void init_grid(Grid & grid)
+{
+    std::random_device rd;
+    std::mt19937 gen(rd());
+    std::uniform_int_distribution<> dis(0, 1);
+    
+    for (std::size_t r = 0; r != grid.size; ++r)
+        for (std::size_t c = 0; c != grid.size; ++c)
+            grid.at(r, c) = dis(gen); 
 }
 
 void save_grid(const Grid & grid, const std::size_t & generation)
