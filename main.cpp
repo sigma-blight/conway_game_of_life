@@ -80,9 +80,15 @@ int main(int argc, char ** argv)
     MPI_Request requests[2];
     MPI_Status status[2];
 
+    if (rank == 0)
+        std::cout << "\tNumber of Nodes: " << num_ranks << "\n"
+                  << "\tTotal Grid Size: " << Grid::cols * Grid::cols << "\n"
+                  << "\tIterations: " << iterations << "\n"
+                  << "\tNumber of threads: " << omp_get_thread_num() << "\n";
+
     std::cout << "Rank " << rank 
-            << " \t- Grid Size: " << rank_grid_size << "\n"
-            << " \t- World Size: " << num_ranks << "\n";
+            << " \t- Grid Size: " << rank_grid_size << "\n";
+
 
     for (std::size_t i = 0; i != iterations; ++i)
     {
@@ -122,9 +128,11 @@ int main(int argc, char ** argv)
 
 
 void generate(Grid & next, const Grid & current)
-{ 
-    for (std::size_t r = 1; r != current.rows - 1; ++r)
-        for (std::size_t c = 1; c != current.cols - 1; ++c)
+{
+    std::size_t r, c;
+#pragma omp parallel for private(r, c) 
+    for (r = 1; r < current.rows - 1; ++r)
+        for (c = 1; c < current.cols - 1; ++c)
         {
             const std::size_t population = get_population(current, r, c);
 
