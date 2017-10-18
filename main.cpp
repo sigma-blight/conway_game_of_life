@@ -2,7 +2,14 @@
 #include <string>
 #include <fstream>
 #include <sstream>
-#include <random>
+#include <cstdlib>
+#include <ctime>
+#include <cmath>
+
+typedef unsigned long size_t;
+namespace std {
+    typedef unsigned long size_t;
+}
 
 #include <mpi.h>
 #include <omp.h>
@@ -10,10 +17,10 @@ MPI_Comm comm = MPI_COMM_WORLD;
 
 struct Grid
 {
-    static constexpr std::size_t cols = 125;
+    static const std::size_t cols = 1000;
 
-    using type_t = std::uint8_t;
-    using grid_t = std::vector<type_t>;
+    typedef unsigned short type_t;
+    typedef std::vector<type_t> grid_t;
 
     grid_t data;
     const std::size_t rows;
@@ -36,9 +43,9 @@ struct Grid
 
 struct Ruleset
 {
-    static constexpr std::size_t overpopulation = 3;
-    static constexpr std::size_t loneliness = 2;
-    static constexpr std::size_t birth = 3;
+    static const std::size_t overpopulation = 3;
+    static const std::size_t loneliness = 2;
+    static const std::size_t birth = 3;
 };
 
 std::size_t get_population(const Grid &, const std::size_t &, const std::size_t &);
@@ -49,9 +56,9 @@ void print_grid(std::ofstream &, const Grid &);
 
 int main(int argc, char ** argv)
 {
-    static constexpr std::size_t iterations = 1000;
-    static constexpr int north_tag = 1;
-    static constexpr int south_tag = 2;
+    static const std::size_t iterations = 1000;
+    static const int north_tag = 1;
+    static const int south_tag = 2;
 
     int rank, num_ranks;
 
@@ -79,28 +86,32 @@ int main(int argc, char ** argv)
 
     for (std::size_t i = 0; i != iterations; ++i)
     {
-        if (rank != 0)        
-            MPI_Irecv(&current.data[0], Grid::cols, MPI::BYTE, 
-                      rank - 1, north_tag, comm, &requests[0]);        
+        if (num_ranks != 1)
+        {
+            if (rank != 0)        
+                MPI_Irecv(&current.data[0], Grid::cols, MPI::BYTE, 
+                          rank - 1, north_tag, comm, &requests[0]);        
         
-        if (rank != num_ranks - 1)
-            MPI_Isend(&current.at(current.rows - 1, 0), Grid::cols, MPI::BYTE, 
-                      rank + 1, north_tag, comm, &requests[0]);
+            if (rank != num_ranks - 1)
+                MPI_Isend(&current.at(current.rows - 1, 0), Grid::cols, MPI::BYTE, 
+                          rank + 1, north_tag, comm, &requests[0]);
 
-        if (rank != num_ranks - 1)
-            MPI_Irecv(&current.at(current.rows - 1, 0), Grid::cols, MPI::BYTE,
-                      rank + 1, south_tag, comm, &requests[1]);
+            if (rank != num_ranks - 1)
+                MPI_Irecv(&current.at(current.rows - 1, 0), Grid::cols, MPI::BYTE,
+                          rank + 1, south_tag, comm, &requests[1]);
 
-        if (rank != 0)
-            MPI_Isend(&current.data[0], Grid::cols, MPI::BYTE,
-                      rank - 1, south_tag, comm, &requests[1]);
+            if (rank != 0)
+                MPI_Isend(&current.data[0], Grid::cols, MPI::BYTE,
+                          rank - 1, south_tag, comm, &requests[1]);
 
-        MPI_Wait(&requests[0], &status[0]);
-        MPI_Wait(&requests[1], &status[1]);
-        MPI_Waitall(2, requests, status);
+            MPI_Wait(&requests[0], &status[0]);
+            MPI_Wait(&requests[1], &status[1]);
+            MPI_Waitall(2, requests, status);
+        }
 
 //        save_grid(current, i);
         generate(next, current);
+
         current.data = next.data;
     }
 
@@ -145,19 +156,16 @@ std::size_t get_population(const Grid & grid,
 
 void init_grid(Grid & grid)
 {
-    std::random_device rd;
-    std::mt19937 gen(rd());
-    std::uniform_int_distribution<> dis(0, 1);
-    
+    srand(time(NULL));
     for (std::size_t r = 0; r != grid.rows; ++r)
         for (std::size_t c = 0; c != grid.cols; ++c)
-            grid.at(r, c) = dis(gen); 
+            grid.at(r, c) = rand() % 2;
 }
 
 void save_grid(const Grid & grid, const std::size_t & generation)
 {
-    static constexpr std::size_t size_tag = 3;
-    static constexpr std::size_t data_tag = 4;
+    static const std::size_t size_tag = 3;
+    static const std::size_t data_tag = 4;
 
     int rank, num_ranks;
     MPI_Comm_rank(comm, &rank);

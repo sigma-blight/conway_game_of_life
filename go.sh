@@ -1,8 +1,8 @@
 #!/bin/bash
-#SBATCH --partition=coursework
+#SBATCH --partition=smp
 #SBATCH --job-name=game_of_life
-#SBATCH --nodes=1
-#SBATCH --ntasks=1
+#SBATCH --nodes=4
+#SBATCH --ntasks=4
 #SBATCH --ntasks-per-node=1
 #SBATCH --cpus-per-task=1
 #SBATCH --time=00:20:00
@@ -18,7 +18,7 @@ echo "running with SLURM_TASKS_PER_NODE= $SLURM_TASKS_PER_NODE "
 echo "Now we start the show:"
 export TIMEFORMAT="%E sec"
 
-module load mpi
+#module load mpi
 #time mpirun -n ${SLURM_TASKS_PER_NODE} ./game_of_life
 time mpirun ./game -n ${SLURM_TASKS_PER_NODE}
 
