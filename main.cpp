@@ -10,7 +10,7 @@ MPI_Comm comm = MPI_COMM_WORLD;
 
 struct Grid
 {
-    static constexpr std::size_t cols = 50;
+    static constexpr std::size_t cols = 125;
 
     using type_t = std::uint8_t;
     using grid_t = std::vector<type_t>;
@@ -49,7 +49,7 @@ void print_grid(std::ofstream &, const Grid &);
 
 int main(int argc, char ** argv)
 {
-    static constexpr std::size_t iterations = 100;
+    static constexpr std::size_t iterations = 1000;
     static constexpr int north_tag = 1;
     static constexpr int south_tag = 2;
 
@@ -64,8 +64,8 @@ int main(int argc, char ** argv)
         rank_grid_size * num_ranks >= Grid::cols) 
         rank_grid_size -= rank_grid_size * num_ranks - Grid::cols;
 
-    if (rank > 0 && num_ranks - 1 > rank) rank_grid_size += 2;
-    else ++rank_grid_size;
+//    if (rank > 0 && num_ranks - 1 > rank) rank_grid_size += 2;
+//    else ++rank_grid_size;
 
     Grid current{ rank_grid_size };
     Grid next{ rank_grid_size };
@@ -73,7 +73,9 @@ int main(int argc, char ** argv)
     MPI_Request requests[2];
     MPI_Status status[2];
 
-    std::cout << "Rank " << rank << " - Grid Size: " << rank_grid_size << "\n"; 
+    std::cout << "Rank " << rank 
+            << " \t- Grid Size: " << rank_grid_size << "\n"
+            << " \t- World Size: " << num_ranks << "\n";
 
     for (std::size_t i = 0; i != iterations; ++i)
     {

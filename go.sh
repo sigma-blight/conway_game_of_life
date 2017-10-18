@@ -1,11 +1,11 @@
 #!/bin/bash
 #SBATCH --partition=coursework
 #SBATCH --job-name=game_of_life
-#SBATCH --nodes=4
-#SBATCH --ntasks=4
+#SBATCH --nodes=1
+#SBATCH --ntasks=1
 #SBATCH --ntasks-per-node=1
 #SBATCH --cpus-per-task=1
-#SBATCH --time=00:00:10
+#SBATCH --time=00:20:00
 
 export OMP_NUM_THREADS=${SLURM_CPUS_PER_TASK}
 
